@@ -3,6 +3,8 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import os
+import base64
+from io import BytesIO
 from PIL import Image, ImageDraw
 from streamlit_drawable_canvas import st_canvas
 
@@ -14,36 +16,34 @@ os.makedirs("fotos_checklists", exist_ok=True)
 os.makedirs("assinaturas", exist_ok=True)
 os.makedirs("croquis", exist_ok=True)
 
-# Função para gerar a imagem base do croqui do veículo (silhueta) via PIL localmente
+# Função para gerar e converter o croqui para PIL Image
 @st.cache_data
 def gerar_croqui_base():
     caminho_local = "carro_croqui.png"
     
-    # Se já existir localmente, reutiliza
     if os.path.exists(caminho_local):
         return Image.open(caminho_local)
     
-    # Criar imagem base limpa caso não exista
     width, height = 600, 300
     img = Image.new("RGB", (width, height), color=(250, 250, 250))
     draw = ImageDraw.Draw(img)
     
-    # Desenho técnico vetorial simples da silhueta do veículo (Vista Superior e Laterais)
+    # Moldura externa
     draw.rectangle([5, 5, width-5, height-5], outline=(200, 200, 200), width=2)
     
     # Vista Superior do Carro (Centro)
-    draw.rounded_rectangle([200, 50, 400, 250], radius=30, outline=(80, 80, 80), width=3) # Corpo
-    draw.rounded_rectangle([230, 80, 370, 220], radius=15, outline=(120, 120, 120), width=2) # Teto/Vidros
-    draw.line([(230, 110), (370, 110)], fill=(120, 120, 120), width=2) # Para-brisa dianteiro
-    draw.line([(230, 190), (370, 190)], fill=(120, 120, 120), width=2) # Para-brisa traseiro
+    draw.rounded_rectangle([200, 50, 400, 250], radius=30, outline=(80, 80, 80), width=3)
+    draw.rounded_rectangle([230, 80, 370, 220], radius=15, outline=(120, 120, 120), width=2)
+    draw.line([(230, 110), (370, 110)], fill=(120, 120, 120), width=2)
+    draw.line([(230, 190), (370, 190)], fill=(120, 120, 120), width=2)
     
-    # Pneus (Vista Superior)
-    draw.rectangle([185, 70, 200, 110], fill=(50, 50, 50)) # Dianteiro Esq
-    draw.rectangle([400, 70, 415, 110], fill=(50, 50, 50)) # Dianteiro Dir
-    draw.rectangle([185, 190, 200, 230], fill=(50, 50, 50)) # Traseiro Esq
-    draw.rectangle([400, 190, 415, 230], fill=(50, 50, 50)) # Traseiro Dir
+    # Pneus
+    draw.rectangle([185, 70, 200, 110], fill=(50, 50, 50))
+    draw.rectangle([400, 70, 415, 110], fill=(50, 50, 50))
+    draw.rectangle([185, 190, 200, 230], fill=(50, 50, 50))
+    draw.rectangle([400, 190, 415, 230], fill=(50, 50, 50))
     
-    # Rótulos das Vistas
+    # Rótulos
     draw.text((250, 20), "FRENTE", fill=(100, 100, 100))
     draw.text((250, 265), "TRASEIRA", fill=(100, 100, 100))
     draw.text((50, 140), "LADO ESQUERDO", fill=(100, 100, 100))
@@ -52,11 +52,15 @@ def gerar_croqui_base():
     img.save(caminho_local)
     return img
 
+# Função para converter imagem PIL em objeto PIL redimensionado para compatibilidade total
+def preparar_imagem_canvas(pil_img, width=600, height=300):
+    return pil_img.resize((width, height))
+
 # Conexão com o Banco de Dados SQLite
 conn = sqlite3.connect("frota_completa.db", check_same_thread=False)
 c = conn.cursor()
 
-# Inicialização da tabela com todos os campos do checklist
+# Inicialização da tabela
 c.execute('''
     CREATE TABLE IF NOT EXISTS vistorias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -219,7 +223,7 @@ if menu == "Novo Checklist":
         st.write("### 9. Croqui para Marcação de Avarias na Lataria")
         st.caption("Risque/circule com o mouse ou toque na imagem abaixo para indicar pontos com riscos, amassados ou avarias:")
         
-        img_croqui_base = gerar_croqui_base()
+        img_croqui_base = preparar_imagem_canvas(gerar_croqui_base())
         
         canvas_croqui = st_canvas(
             fill_color="rgba(255, 0, 0, 0.3)",
@@ -275,7 +279,6 @@ if menu == "Novo Checklist":
             else:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 
-                # Salvar Fotos (Câmera + Galeria)
                 lista_caminhos_fotos = []
                 
                 if foto_camera:
@@ -293,14 +296,12 @@ if menu == "Novo Checklist":
 
                 caminhos_fotos_str = ";".join(lista_caminhos_fotos)
 
-                # Salvar Croqui
                 caminho_croqui_str = ""
                 if canvas_croqui.image_data is not None:
                     img_croqui = Image.fromarray(canvas_croqui.image_data.astype('uint8'))
                     caminho_croqui_str = f"croquis/{placa}_{timestamp}_croqui.png"
                     img_croqui.save(caminho_croqui_str)
 
-                # Salvar Assinatura
                 caminho_ass_str = ""
                 if canvas_assinatura.image_data is not None:
                     img_ass = Image.fromarray(canvas_assinatura.image_data.astype('uint8'))
