@@ -12,12 +12,13 @@ st.set_page_config(page_title="Checklist de Frota Completo", layout="wide")
 # Diretórios para arquivos
 os.makedirs("fotos_checklists", exist_ok=True)
 os.makedirs("assinaturas", exist_ok=True)
+os.makedirs("croquis", exist_ok=True)
 
 # Conexão com Banco de Dados SQLite
 conn = sqlite3.connect("frota_completa.db", check_same_thread=False)
 c = conn.cursor()
 
-# Criação da tabela com todos os campos do checklist
+# Criação/Atualização da tabela no banco
 c.execute('''
     CREATE TABLE IF NOT EXISTS vistorias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,6 +28,11 @@ c.execute('''
         km INTEGER,
         nivel_combustivel TEXT,
         destino_objetivo TEXT,
+        
+        -- Alertas e Manutenção Preventiva
+        necessita_lavagem TEXT,
+        prazo_troca_oleo TEXT,
+        prazo_geometria_balanceamento TEXT,
         
         -- Interior
         painel_luzes TEXT,
@@ -69,9 +75,10 @@ c.execute('''
         tapetes_fixacao TEXT,
         ar_multimidia_acessorios TEXT,
         
-        -- Mídia e Registro
+        -- Mídia, Croqui e Registro
         observacoes TEXT,
-        caminho_foto TEXT,
+        caminhos_fotos TEXT,
+        caminho_croqui TEXT,
         caminho_assinatura TEXT,
         data_hora TEXT
     )
@@ -101,8 +108,20 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # --- 2. NO INTERIOR DO VEÍCULO ---
-        st.write("### 2. No Interior do Veículo")
+        # --- 2. ALERTAS DE MANUTENÇÃO E LIMPEZA ---
+        st.write("### 2. Higienização e Prazos de Manutenção Preventiva")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            lavagem = st.selectbox("Necessita Lavagem?", ["Não", "Sim - Externa", "Sim - Interna", "Sim - Completa"])
+        with c2:
+            prazo_oleo = st.text_input("Prazo / KM para Troca de Óleo", placeholder="Ex: 50.000 KM ou 10/10/2026")
+        with c3:
+            prazo_geom = st.text_input("Prazo / KM Geometria e Balanceamento", placeholder="Ex: 10.000 KM ou 15/12/2026")
+
+        st.markdown("---")
+
+        # --- 3. NO INTERIOR DO VEÍCULO ---
+        st.write("### 3. No Interior do Veículo")
         c1, c2, c3, c4, c5 = st.columns(5)
         with c1:
             painel = st.radio("Painel / Luzes Espia", ["OK", "Atenção", "N/A"])
@@ -117,8 +136,8 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # --- 3. SOB O CAPÔ ---
-        st.write("### 3. Sob o Capô (Níveis e Fluidos)")
+        # --- 4. SOB O CAPÔ ---
+        st.write("### 4. Sob o Capô (Níveis e Fluidos)")
         c1, c2, c3, c4, c5, c6 = st.columns(6)
         with c1:
             oleo = st.radio("Óleo do Motor", ["OK", "Atenção", "N/A"])
@@ -135,8 +154,8 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # --- 4. ILUMINAÇÃO E SINALIZAÇÃO ---
-        st.write("### 4. Iluminação e Sinalização Externa")
+        # --- 5. ILUMINAÇÃO E SINALIZAÇÃO ---
+        st.write("### 5. Iluminação e Sinalização Externa")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             farois = st.radio("Faróis e Lanternas", ["OK", "Atenção", "N/A"])
@@ -149,8 +168,8 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # --- 5. PNEUS E RODAS ---
-        st.write("### 5. Pneus e Rodas")
+        # --- 6. PNEUS E RODAS ---
+        st.write("### 6. Pneus e Rodas")
         c1, c2, c3 = st.columns(3)
         with c1:
             pressao_pneus = st.radio("Calibragem / Pressão", ["OK", "Atenção", "N/A"])
@@ -161,8 +180,8 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # --- 6. EQUIPAMENTOS OBRIGATÓRIOS E PLACAS ---
-        st.write("### 6. Equipamentos Obrigatórios, Placas e Docs")
+        # --- 7. EQUIPAMENTOS OBRIGATÓRIOS E PLACAS ---
+        st.write("### 7. Equipamentos Obrigatórios, Placas e Docs")
         c1, c2, c3 = st.columns(3)
         with c1:
             kit_emergencia = st.radio("Triângulo / Macaco / Chave Roda", ["OK", "Atenção", "N/A"])
@@ -173,32 +192,57 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # --- 7. LATARIA, ADESIVAGEM E ESTOFADOS ---
-        st.write("### 7. Lataria, Pintura, Acessórios e Estofados")
+        # --- 8. LATARIA, ADESIVAGEM E ESTOFADOS ---
+        st.write("### 8. Lataria, Pintura, Acessórios e Estofados")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            lataria = st.radio("Lataria e Pintura (Sem amassados)", ["OK", "Atenção", "N/A"])
+            lataria = st.radio("Lataria e Pintura", ["OK", "Atenção", "N/A"])
             adesivagem = st.radio("Adesivagem / Logotipos", ["OK", "Atenção", "N/A"])
         with c2:
             estofados = st.radio("Estofados / Bancos", ["OK", "Atenção", "N/A"])
-            revestimentos = st.radio("Revestimentos / Teto / Teto", ["OK", "Atenção", "N/A"])
+            revestimentos = st.radio("Revestimentos / Teto", ["OK", "Atenção", "N/A"])
         with c3:
             tapetes = st.radio("Tapetes (Presença e Trava)", ["OK", "Atenção", "N/A"])
             ar_acessorios = st.radio("Ar-Cond. / Som / Multimídia", ["OK", "Atenção", "N/A"])
 
         st.markdown("---")
 
-        # --- 8. OBSERVAÇÕES E REGISTRO FOTOGRÁFICO ---
-        st.write("### 8. Registro Fotográfico e Observações")
-        obs = st.text_area("Observações Adicionais / Detalhes de Avarias", placeholder="Descreva aqui qualquer arranhão, ruído ou problema encontrado...")
-        foto = st.camera_input("Tire uma foto do veículo, odômetro ou avaria")
+        # --- 9. CROQUI DE AVARIAS NA LATARIA ---
+        st.write("### 9. Croqui para Marcação de Avarias na Lataria")
+        st.caption("Use o mouse ou o toque para circular/riscar na imagem os pontos com arranhões ou amassados:")
+        
+        bg_image = Image.open("carro_croqui.png") if os.path.exists("carro_croqui.png") else None
+        
+        canvas_croqui = st_canvas(
+            fill_color="rgba(255, 0, 0, 0.3)",
+            stroke_width=3,
+            stroke_color="#FF0000",
+            background_image=bg_image,
+            background_color="#EEEEEE" if bg_image is None else None,
+            height=300,
+            width=600,
+            drawing_mode="freedraw",
+            key="canvas_croqui",
+        )
+
+        st.markdown("---")
+
+        # --- 10. OBSERVAÇÕES E REGISTRO FOTOGRÁFICO MÚLTIPLO ---
+        st.write("### 10. Registro Fotográfico Múltiplo e Observações")
+        obs = st.text_area("Observações Adicionais / Detalhes de Avarias", placeholder="Descreva aqui detalhes das avarias marcadas no croqui ou outros problemas...")
+        
+        # Múltiplas fotos
+        fotos_upload = st.file_uploader(
+            "Anexe ou tire fotos do veículo (Lataria, Painel, Pneus, Avarias)", 
+            type=["png", "jpg", "jpeg"], 
+            accept_multiple_files=True
+        )
 
         st.markdown("---")
         st.write("### ✍️ Assinatura do Condutor")
-        st.caption("Desenhe sua assinatura abaixo usando o touch ou mouse:")
+        st.caption("Desenhe sua assinatura abaixo:")
         
-        # Componente de Canvas para Assinatura Digital
-        canvas_result = st_canvas(
+        canvas_assinatura = st_canvas(
             fill_color="rgba(255, 255, 255, 0)",
             stroke_width=2,
             stroke_color="#000000",
@@ -217,19 +261,29 @@ if menu == "Novo Checklist":
             else:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 
-                # Salvar Foto
-                caminho_foto = ""
-                if foto:
-                    img = Image.open(foto)
-                    caminho_foto = f"fotos_checklists/{placa}_{timestamp}.png"
-                    img.save(caminho_foto)
+                # Salvar Múltiplas Fotos
+                lista_caminhos_fotos = []
+                if fotos_upload:
+                    for i, foto in enumerate(fotos_upload):
+                        img = Image.open(foto)
+                        caminho_f = f"fotos_checklists/{placa}_{timestamp}_foto_{i+1}.png"
+                        img.save(caminho_f)
+                        lista_caminhos_fotos.append(caminho_f)
+                caminhos_fotos_str = ";".join(lista_caminhos_fotos)
+
+                # Salvar Croqui
+                caminho_croqui_str = ""
+                if canvas_croqui.image_data is not None:
+                    img_croqui = Image.fromarray(canvas_croqui.image_data.astype('uint8'))
+                    caminho_croqui_str = f"croquis/{placa}_{timestamp}_croqui.png"
+                    img_croqui.save(caminho_croqui_str)
 
                 # Salvar Assinatura
-                caminho_ass = ""
-                if canvas_result.image_data is not None:
-                    img_ass = Image.fromarray(canvas_result.image_data.astype('uint8'))
-                    caminho_ass = f"assinaturas/{placa}_{timestamp}_ass.png"
-                    img_ass.save(caminho_ass)
+                caminho_ass_str = ""
+                if canvas_assinatura.image_data is not None:
+                    img_ass = Image.fromarray(canvas_assinatura.image_data.astype('uint8'))
+                    caminho_ass_str = f"assinaturas/{placa}_{timestamp}_ass.png"
+                    img_ass.save(caminho_ass_str)
 
                 data_atual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -237,23 +291,25 @@ if menu == "Novo Checklist":
                 c.execute('''
                     INSERT INTO vistorias (
                         tipo_vistoria, placa, motorista, km, nivel_combustivel, destino_objetivo,
+                        necessita_lavagem, prazo_troca_oleo, prazo_geometria_balanceamento,
                         painel_luzes, cintos_seguranca, limpadores_lavador, retrovisores, buzina_freio_mao,
                         oleo_motor, liquido_arrefecimento, fluido_freio, fluido_direcao, reservatorio_limpador, bateria,
                         farois_lanternas, luzes_sinalizacao, luz_placa, palhetas_borracha,
                         pressao_pneus, conservacao_twi, estepe,
                         kit_emergencia, documento_crlv, placas_lacre_qr,
                         lataria_pintura, adesivagem_logos, estofados_bancos, revestimentos_limpeza, tapetes_fixacao, ar_multimidia_acessorios,
-                        observacoes, caminho_foto, caminho_assinatura, data_hora
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        observacoes, caminhos_fotos, caminho_croqui, caminho_assinatura, data_hora
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
                     tipo_vistoria, placa, motorista, km, combustivel, destino,
+                    lavagem, prazo_oleo, prazo_geom,
                     painel, cintos, limpadores, retrovisores, buzina_freio,
                     oleo, arrefecimento, fl_freio, fl_direcao, res_limpador, bateria,
                     farois, sinalizacao, luz_placa, palhetas,
                     pressao_pneus, twi_pneus, estepe,
                     kit_emergencia, documento, placas,
                     lataria, adesivagem, estofados, revestimentos, tapetes, ar_acessorios,
-                    obs, caminho_foto, caminho_ass, data_atual
+                    obs, caminhos_fotos_str, caminho_croqui_str, caminho_ass_str, data_atual
                 ))
                 conn.commit()
                 st.success(f"Vistoria do veículo {placa} registrada com sucesso!")
@@ -274,18 +330,29 @@ elif menu == "Histórico de Vistorias":
         st.dataframe(df, use_container_width=True)
 
         st.markdown("---")
-        st.write("### 🖼️ Comprovação Fotográfica e Assinatura")
+        st.write("### 🖼️ Detalhes, Fotos e Croqui")
         for idx, row in df.iterrows():
             with st.expander(f"Vistoria #{row['id']} - {row['placa']} ({row['tipo_vistoria']}) - {row['data_hora']}"):
                 col_a, col_b = st.columns(2)
                 with col_a:
                     st.write(f"**Motorista:** {row['motorista']}")
                     st.write(f"**KM:** {row['km']} | **Combustível:** {row['nivel_combustivel']}")
-                    st.write(f"**Destino:** {row['destino_objetivo']}")
+                    st.write(f"**Necessita Lavagem?** {row['necessita_lavagem']}")
+                    st.write(f"**Prazo Óleo:** {row['prazo_troca_oleo']} | **Geometria:** {row['prazo_geometria_balanceamento']}")
                     st.write(f"**Observações:** {row['observacoes']}")
                 
                 with col_b:
-                    if row['caminho_foto'] and os.path.exists(row['caminho_foto']):
-                        st.image(row['caminho_foto'], caption="Registro do Veículo", width=300)
+                    if row['caminho_croqui'] and os.path.exists(row['caminho_croqui']):
+                        st.image(row['caminho_croqui'], caption="Croqui de Avarias", width=350)
                     if row['caminho_assinatura'] and os.path.exists(row['caminho_assinatura']):
                         st.image(row['caminho_assinatura'], caption="Assinatura Coletada", width=200)
+
+                # Exibição da Galeria de Fotos Múltiplas
+                if row['caminhos_fotos']:
+                    st.write("**Galeria de Fotos Anexadas:**")
+                    fotos_list = row['caminhos_fotos'].split(";")
+                    cols_f = st.columns(len(fotos_list))
+                    for i, path_f in enumerate(fotos_list):
+                        if os.path.exists(path_f):
+                            with cols_f[i]:
+                                st.image(path_f, use_container_width=True)
