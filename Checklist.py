@@ -4,33 +4,70 @@ import pandas as pd
 from datetime import datetime
 import os
 from PIL import Image
-from streamlit_drawable_canvas import st_canvas
 
 # Configuração da página Streamlit
 st.set_page_config(page_title="Checklist de Frota Completo", layout="wide")
 
-# Diretórios para armazenamento de mídias
+# Diretório para armazenamento de fotos
 os.makedirs("fotos_checklists", exist_ok=True)
-os.makedirs("assinaturas", exist_ok=True)
 
 # Conexão com o Banco de Dados SQLite
 conn = sqlite3.connect("frota_completa.db", check_same_thread=False)
 c = conn.cursor()
 
-# Inicialização do banco sem o campo de croqui
+# Inicialização da tabela (com campo de vistoriador e sem croqui/assinatura)
 c.execute('''
     CREATE TABLE IF NOT EXISTS vistorias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tipo_vistoria TEXT, placa TEXT, motorista TEXT, km INTEGER, nivel_combustivel TEXT, destino_objetivo TEXT,
-        necessita_lavagem TEXT, prazo_troca_oleo TEXT, prazo_geometria_balanceamento TEXT,
-        painel_luzes TEXT, cintos_seguranca TEXT, limpadores_lavador TEXT, retrovisores TEXT, buzina_freio_mao TEXT,
-        oleo_motor TEXT, liquido_arrefecimento TEXT, fluido_freio TEXT, fluido_direcao TEXT, reservatorio_limpador TEXT, bateria TEXT,
-        farois_lanternas TEXT, luzes_sinalizacao TEXT, luz_placa TEXT, palhetas_borracha TEXT,
-        pressao_pneus TEXT, conservacao_twi TEXT, estepe TEXT,
-        kit_emergencia TEXT, documento_crlv TEXT,
-        lataria_pintura TEXT, adesivagem_logos TEXT, placas_lacre_qr TEXT,
-        estofados_bancos TEXT, revestimentos_limpeza TEXT, tapetes_fixacao TEXT, ar_multimidia_acessorios TEXT,
-        observacoes TEXT, caminhos_fotos TEXT, caminho_assinatura TEXT, data_hora TEXT
+        tipo_vistoria TEXT, 
+        placa TEXT, 
+        motorista TEXT, 
+        vistoriador TEXT,
+        km INTEGER, 
+        nivel_combustivel TEXT, 
+        destino_objetivo TEXT,
+        
+        necessita_lavagem TEXT, 
+        prazo_troca_oleo TEXT, 
+        prazo_geometria_balanceamento TEXT,
+        
+        painel_luzes TEXT, 
+        cintos_seguranca TEXT, 
+        limpadores_lavador TEXT, 
+        retrovisores TEXT, 
+        buzina_freio_mao TEXT,
+        
+        oleo_motor TEXT, 
+        liquido_arrefecimento TEXT, 
+        fluido_freio TEXT, 
+        fluido_direcao TEXT, 
+        reservatorio_limpador TEXT, 
+        bateria TEXT,
+        
+        farois_lanternas TEXT, 
+        luzes_sinalizacao TEXT, 
+        luz_placa TEXT, 
+        palhetas_borracha TEXT,
+        
+        pressao_pneus TEXT, 
+        conservacao_twi TEXT, 
+        estepe TEXT,
+        
+        kit_emergencia TEXT, 
+        documento_crlv TEXT,
+        
+        lataria_pintura TEXT, 
+        adesivagem_logos TEXT, 
+        placas_lacre_qr TEXT,
+        
+        estofados_bancos TEXT, 
+        revestimentos_limpeza TEXT, 
+        tapetes_fixacao TEXT, 
+        ar_multimidia_acessorios TEXT,
+        
+        observacoes TEXT, 
+        caminhos_fotos TEXT, 
+        data_hora TEXT
     )
 ''')
 conn.commit()
@@ -43,17 +80,19 @@ if menu == "Novo Checklist":
     st.subheader("📋 Preenchimento da Vistoria")
     
     with st.form("form_checklist_completo"):
-        # 1. DIÁRIO DE BORDO
+        # 1. DIÁRIO DE BORDO & IDENTIFICAÇÃO
         st.write("### 1. Diário de Bordo & Identificação")
-        c1, c2, c3 = st.columns(3)
+        c1, c2, c3, c4 = st.columns(4)
         with c1:
             tipo_vistoria = st.selectbox("Tipo de Vistoria", ["Retirada / Empréstimo", "Devolução", "Periódica"])
             placa = st.text_input("Placa do Veículo", placeholder="ABC1D23").upper()
         with c2:
-            motorista = st.text_input("Nome do Condutor / Responsável")
-            km = st.number_input("Quilometragem (KM)", min_value=0, step=1)
+            motorista = st.text_input("Nome do Condutor")
+            vistoriador = st.text_input("Nome do Vistoriador / Inspetor")
         with c3:
+            km = st.number_input("Quilometragem (KM)", min_value=0, step=1)
             combustivel = st.select_slider("Nível de Combustível", options=["Reserva", "1/4", "1/2", "3/4", "Cheio"])
+        with c4:
             destino = st.text_input("Destino / Objetivo do Trajeto")
 
         st.markdown("---")
@@ -133,7 +172,7 @@ if menu == "Novo Checklist":
 
         st.markdown("---")
 
-        # 9. REGISTRO FOTOGRÁFICO MÚLTIPLO
+        # 9. REGISTRO FOTOGRÁFICO MÚLTIPLO E OBSERVAÇÕES
         st.write("### 9. Captura de Fotos e Registro Fotográfico")
         col_foto1, col_foto2 = st.columns(2)
         with col_foto1:
@@ -151,27 +190,12 @@ if menu == "Novo Checklist":
         obs = st.text_area("Observações Adicionais", placeholder="Descreva detalhes adicionais sobre o estado do veículo ou avarias encontradas...")
 
         st.markdown("---")
-        
-        # 10. ASSINATURA DIGITAL
-        st.write("### ✍️ Assinatura do Condutor")
-        st.caption("Assine no quadro abaixo:")
-        
-        canvas_assinatura = st_canvas(
-            fill_color="rgba(255, 255, 255, 0)",
-            stroke_width=2,
-            stroke_color="#000000",
-            background_color="#EEEEEE",
-            height=150,
-            width=400,
-            drawing_mode="freedraw",
-            key="canvas_assinatura",
-        )
 
         submit = st.form_submit_button("💾 Finalizar e Salvar Vistoria")
 
         if submit:
-            if not placa or not motorista:
-                st.error("Erro: Preencha a Placa e o Nome do Condutor.")
+            if not placa or not motorista or not vistoriador:
+                st.error("Erro: Preencha a Placa, o Nome do Condutor e do Vistoriador.")
             else:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 lista_caminhos_fotos = []
@@ -183,7 +207,7 @@ if menu == "Novo Checklist":
                     img_cam.save(caminho_cam)
                     lista_caminhos_fotos.append(caminho_cam)
 
-                # Salvar Fotos Uploadadas
+                # Salvar Fotos Anexadas
                 if fotos_upload:
                     for i, foto in enumerate(fotos_upload):
                         img_up = Image.open(foto)
@@ -192,19 +216,11 @@ if menu == "Novo Checklist":
                         lista_caminhos_fotos.append(caminho_up)
 
                 caminhos_fotos_str = ";".join(lista_caminhos_fotos)
-
-                # Salvar Assinatura
-                caminho_ass_str = ""
-                if canvas_assinatura.image_data is not None:
-                    img_ass = Image.fromarray(canvas_assinatura.image_data.astype('uint8'))
-                    caminho_ass_str = f"assinaturas/{placa}_{timestamp}_ass.png"
-                    img_ass.save(caminho_ass_str)
-
                 data_atual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 c.execute('''
                     INSERT INTO vistorias (
-                        tipo_vistoria, placa, motorista, km, nivel_combustivel, destino_objetivo,
+                        tipo_vistoria, placa, motorista, vistoriador, km, nivel_combustivel, destino_objetivo,
                         necessita_lavagem, prazo_troca_oleo, prazo_geometria_balanceamento,
                         painel_luzes, cintos_seguranca, limpadores_lavador, retrovisores, buzina_freio_mao,
                         oleo_motor, liquido_arrefecimento, fluido_freio, fluido_direcao, reservatorio_limpador, bateria,
@@ -212,10 +228,10 @@ if menu == "Novo Checklist":
                         pressao_pneus, conservacao_twi, estepe,
                         kit_emergencia, documento_crlv, placas_lacre_qr,
                         lataria_pintura, adesivagem_logos, estofados_bancos, revestimentos_limpeza, tapetes_fixacao, ar_multimidia_acessorios,
-                        observacoes, caminhos_fotos, caminho_assinatura, data_hora
+                        observacoes, caminhos_fotos, data_hora
                     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 ''', (
-                    tipo_vistoria, placa, motorista, km, combustivel, destino,
+                    tipo_vistoria, placa, motorista, vistoriador, km, combustivel, destino,
                     lavagem, prazo_oleo, prazo_geom,
                     painel, cintos, limpadores, retrovisores, buzina_freio,
                     oleo, arrefecimento, fl_freio, fl_direcao, res_limpador, bateria,
@@ -223,10 +239,10 @@ if menu == "Novo Checklist":
                     pressao_pneus, twi_pneus, estepe,
                     kit_emergencia, documento, placas,
                     lataria, adesivagem, estofados, revestimentos, tapetes, ar_acessorios,
-                    obs, caminhos_fotos_str, caminho_ass_str, data_atual
+                    obs, caminhos_fotos_str, data_atual
                 ))
                 conn.commit()
-                st.success(f"Vistoria do veículo {placa} registrada com sucesso!")
+                st.success(f"Vistoria do veículo {placa} registrada com sucesso por {vistoriador}!")
 
 elif menu == "Histórico de Vistorias":
     st.subheader("📊 Consultas e Relatórios de Frota")
@@ -243,22 +259,20 @@ elif menu == "Histórico de Vistorias":
         st.dataframe(df, use_container_width=True)
 
         st.markdown("---")
-        st.write("### 🖼️ Detalhes, Assinatura e Galeria de Fotos")
+        st.write("### 🖼️ Detalhes e Galeria de Fotos")
         for idx, row in df.iterrows():
             with st.expander(f"Vistoria #{row['id']} - {row['placa']} ({row['tipo_vistoria']}) - {row['data_hora']}"):
                 col_a, col_b = st.columns(2)
                 with col_a:
-                    st.write(f"**Motorista:** {row['motorista']}")
+                    st.write(f"**Condutor:** {row['motorista']}")
+                    st.write(f"**Vistoriador:** {row['vistoriador']}")
                     st.write(f"**KM:** {row['km']} | **Combustível:** {row['nivel_combustivel']}")
                     st.write(f"**Destino:** {row['destino_objetivo']}")
+                with col_b:
                     st.write(f"**Necessita Lavagem?** {row['necessita_lavagem']}")
                     st.write(f"**Prazo Troca de Óleo:** {row['prazo_troca_oleo']}")
                     st.write(f"**Prazo Geometria/Balanceamento:** {row['prazo_geometria_balanceamento']}")
                     st.write(f"**Observações:** {row['observacoes']}")
-                
-                with col_b:
-                    if row['caminho_assinatura'] and os.path.exists(row['caminho_assinatura']):
-                        st.image(row['caminho_assinatura'], caption="Assinatura Coletada", width=200)
 
                 if row['caminhos_fotos']:
                     st.write("**Galeria de Fotos Anexadas:**")
